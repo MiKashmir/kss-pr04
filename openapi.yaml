@@ -1,13 +1,10 @@
-# Шаблон специфікації OpenAPI 3.1 до практичної роботи № 4.
-# Замініть усі позначки <…> відповідно до вашого варіанта (VARIANTS.md).
-# Перевірка: npm run lint · документація: npm run docs · імітаційний сервер: npm run mock
 openapi: 3.1.0
 info:
-  title: <Назва системи> API
+  title: Система бронювання аудиторій API
   version: 1.0.0
-  summary: <Одне речення про призначення API>
+  summary: REST API для управління аудиторіями та їх бронюванням.
   description: |
-    Варіант № <N>. Виконав(ла): <Прізвище Ім’я>, група 456-Д.
+    Варіант № 2. Виконав: Здоміщук Михайло, група 356-Д.
 
     **Домовленості:** шляхи від `/api/v1`; ресурси – іменники в множині (kebab-case);
     JSON у camelCase; дати – ISO 8601; колекції – сторінками `{ items, page, pageSize, total }`;
@@ -21,8 +18,10 @@ servers:
 tags:
   - name: auth
     description: Автентифікація
-  # - name: <ресурс>
-  #   description: <опис>
+  - name: rooms
+    description: Управління аудиторіями
+  - name: bookings
+    description: Управління бронюваннями
 security:
   - bearerAuth: []
 
@@ -52,14 +51,270 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  # Приклад структури колекції (розкоментуйте й адаптуйте):
-  # /<resources>:
-  #   get:      список зі сторінками, фільтрами й сортуванням
-  #   post:     створення → 201 + Location
-  # /<resources>/{<resource>Id}:
-  #   get / patch / delete (204)
-  # /<resources>/{<resource>Id}/<sub-resources>:   вкладена колекція
-  # /<resources>/{<resource>Id}/<action>:           дія (x-kss-action: true)
+  /rooms:
+    get:
+      tags: [rooms]
+      operationId: listRooms
+      summary: Список аудиторій
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: capacity
+          in: query
+          description: Мінімальна місткість
+          schema:
+            type: integer
+        - name: hasProjector
+          in: query
+          description: Наявність проектора
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Сторінка аудиторій
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [rooms]
+      operationId: createRoom
+      summary: Створити аудиторію
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomRequest"
+      responses:
+        "201":
+          description: Аудиторію створено
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /rooms/{roomId}:
+    get:
+      tags: [rooms]
+      operationId: getRoom
+      summary: Читання аудиторії
+      parameters:
+        - $ref: "#/components/parameters/RoomId"
+      responses:
+        "200":
+          description: Дані аудиторії
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /rooms/{roomId}/bookings:
+    get:
+      tags: [bookings]
+      operationId: listRoomBookings
+      summary: Бронювання певної аудиторії
+      parameters:
+        - $ref: "#/components/parameters/RoomId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Сторінка бронювань аудиторії
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings:
+    get:
+      tags: [bookings]
+      operationId: listBookings
+      summary: Список усіх бронювань
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/BookingStatus"
+        - name: userId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Сторінка бронювань
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [bookings]
+      operationId: createBooking
+      summary: Створити бронювання
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingRequest"
+      responses:
+        "201":
+          description: Бронювання створено
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /bookings/{bookingId}:
+    get:
+      tags: [bookings]
+      operationId: getBooking
+      summary: Читання бронювання
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      responses:
+        "200":
+          description: Дані бронювання
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [bookings]
+      operationId: updateBooking
+      summary: Оновлення бронювання
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBookingRequest"
+      responses:
+        "200":
+          description: Бронювання оновлено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags: [bookings]
+      operationId: deleteBooking
+      summary: Видалення бронювання
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      responses:
+        "204":
+          description: Бронювання видалено
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings/{bookingId}/confirm:
+    post:
+      tags: [bookings]
+      operationId: confirmBooking
+      summary: Підтвердження бронювання диспетчером
+      x-kss-action: true
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      responses:
+        "200":
+          description: Бронювання успішно підтверджено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /bookings/{bookingId}/cancel:
+    post:
+      tags: [bookings]
+      operationId: cancelBooking
+      summary: Скасування бронювання
+      x-kss-action: true
+      parameters:
+        - $ref: "#/components/parameters/BookingId"
+      responses:
+        "200":
+          description: Бронювання успішно скасовано
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
 
 components:
   securitySchemes:
@@ -86,6 +341,20 @@ components:
         minimum: 1
         maximum: 50
         default: 10
+    RoomId:
+      name: roomId
+      in: path
+      required: true
+      description: Ідентифікатор аудиторії
+      schema:
+        type: integer
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      description: Ідентифікатор бронювання
+      schema:
+        type: integer
 
   headers:
     Location:
@@ -108,8 +377,8 @@ components:
           format: password
           minLength: 8
       example:
-        email: student@college.example.ua
-        password: student123
+        email: dispatcher@college.example.ua
+        password: adminpassword
 
     LoginResponse:
       type: object
@@ -126,6 +395,150 @@ components:
         accessToken: 2f1c9a54-8d3e-4b7a-9f1e-6c2d8a4b0e71
         tokenType: Bearer
         expiresIn: 3600
+
+    Room:
+      type: object
+      required: [id, name, capacity, hasProjector, createdAt]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        capacity:
+          type: integer
+          minimum: 1
+        hasProjector:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+      example:
+        id: 214
+        name: "Аудиторія 214"
+        capacity: 30
+        hasProjector: true
+        createdAt: "2026-10-26T08:00:00Z"
+
+    CreateRoomRequest:
+      type: object
+      required: [name, capacity, hasProjector]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        capacity:
+          type: integer
+          minimum: 1
+        hasProjector:
+          type: boolean
+      example:
+        name: "Аудиторія 214"
+        capacity: 30
+        hasProjector: true
+
+    BookingStatus:
+      type: string
+      enum: [pending, confirmed, cancelled]
+
+    Booking:
+      type: object
+      required: [id, roomId, userId, startTime, endTime, status, createdAt]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        roomId:
+          type: integer
+        userId:
+          type: integer
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+      example:
+        id: 1
+        roomId: 214
+        userId: 5
+        startTime: "2026-10-27T10:00:00Z"
+        endTime: "2026-10-27T11:20:00Z"
+        status: "pending"
+        createdAt: "2026-10-26T09:00:00Z"
+
+    CreateBookingRequest:
+      type: object
+      required: [roomId, startTime, endTime]
+      additionalProperties: false
+      properties:
+        roomId:
+          type: integer
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+      example:
+        roomId: 214
+        startTime: "2026-10-27T10:00:00Z"
+        endTime: "2026-10-27T11:20:00Z"
+
+    UpdateBookingRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+      example:
+        endTime: "2026-10-27T12:00:00Z"
+
+    RoomPage:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Room"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+
+    BookingPage:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
 
     ProblemDetails:
       type: object
